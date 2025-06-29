@@ -12,11 +12,10 @@ An end-to-end machine learning app that detects fraudulent credit card transacti
 - Flask + HTML/CSS + JS
 - Scikit-learn, XGBoost
 - SMOTE for class imbalance
-- Deployment ready (AWS/Heroku)
 
 ## 🧠 Models Trained
-- XGBoost (AUC: 0.9889) ✅
+- XGBoost 
 - Random Forest
 - Logistic Regression
 
-## 📂 Structure
+
