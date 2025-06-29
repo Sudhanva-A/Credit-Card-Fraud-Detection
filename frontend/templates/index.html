@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Credit Card Fraud Detection</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="predictor">
+        <h1>Transaction Fraud Detection</h1>
+
+        <!-- Dashboard and Download -->
+<div class="extras">
+    <button onclick="downloadCSV()">Download Predictions</button>
+    <button onclick="getStats()">Show Stats</button>
+</div>
+
+<!-- Stats Display -->
+<div class="stats" id="stats" style="display: none;">
+    <h3>📊 Real-Time Stats</h3>
+    <p><strong>Total Predictions:</strong> <span id="total-pred"></span></p>
+    <p><strong>Fraud Predictions:</strong> <span id="fraud-pred"></span></p>
+    <p><strong>Fraud Rate:</strong> <span id="fraud-rate"></span></p>
+    <p><strong>Current Model:</strong> <span id="model-name"></span></p>
+</div>
+
+
+        <!-- Model Selector -->
+        <div class="model-switcher">
+            <label for="model-selector"><strong>Choose Model:</strong></label>
+            <select id="model-selector">
+                <option value="xgboost">XGBoost</option>
+                <option value="random_forest">Random Forest</option>
+                <option value="logistic">Logistic Regression</option>
+            </select>
+            <button onclick="switchModel()">Switch Model</button>
+        </div>
+
+        <!-- Autofill -->
+        <div class="autofill-buttons">
+            <button onclick="fillSample('fraud')">Autofill Fraud</button>
+            <button onclick="fillSample('legit')">Autofill Legit</button>
+        </div>
+
+        <p>Enter the 30 feature values (V1–V28, Amount, Time):</p>
+
+        <div class="features" id="feature-container"></div>
+
+        <button id="predict-btn">Check for Fraud</button>
+
+        <div class="result" id="result">
+            <h3 id="result-title">Result</h3>
+            <p id="result-text"></p>
+            <p id="probability-text"></p>
+        </div>
+    </div>
+
+    <div class="toast" id="toast">Model Switched!</div>
+
+    <script>
+        // Generate 30 fields
+        const container = document.getElementById('feature-container');
+        for (let i = 1; i <= 30; i++) {
+            const div = document.createElement('div');
+            div.className = 'feature-input';
+            const label = document.createElement('label');
+            label.textContent = i <= 28 ? `V${i}` : (i === 29 ? 'Amount' : 'Time');
+            const input = document.createElement('input');
+            input.type = 'number';
+            input.step = '0.0001';
+            input.id = `feature-${i}`;
+            input.className = 'feature-value';
+            div.appendChild(label);
+            div.appendChild(input);
+            container.appendChild(div);
+        }
+
+        // Predict Button
+        document.getElementById('predict-btn').addEventListener('click', async () => {
+            const features = [];
+            for (let i = 1; i <= 30; i++) {
+                features.push(parseFloat(document.getElementById(`feature-${i}`).value) || 0);
+            }
+
+            try {
+                const res = await fetch('http://localhost:5000/predict', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ features })
+                });
+                const data = await res.json();
+
+                const result = document.getElementById('result');
+                result.className = 'result show ' + (data.is_fraud ? 'fraud' : 'safe');
+                document.getElementById('result-title').textContent =
+                    data.is_fraud ? '🚨 Fraud Detected!' : '✅ Legitimate Transaction';
+                document.getElementById('result-text').textContent =
+                    data.is_fraud ? 'This transaction appears fraudulent!' : 'No signs of fraud detected.';
+                document.getElementById('probability-text').textContent =
+                    `Fraud Probability: ${(data.probability * 100).toFixed(2)}%`;
+                    getStats();
+            } catch (err) {
+                console.error(err);
+                alert('Prediction failed.');
+            }
+        });
+
+        // Model Switcher
+        function switchModel() {
+            const model = document.getElementById('model-selector').value;
+            fetch('http://localhost:5000/change-model', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ model })
+            
+            })
+            .then(res => res.json())
+            .then(data => {
+                showToast(data.message || 'Model switched!');
+            })
+            .catch(() => showToast('Model switch failed.'));
+        }
+
+        // Toast Notification
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        // Sample inputs
+        function fillSample(type) {
+            const fraudSample = [
+                28625.0, -27.8482, 15.5982, -28.9238, 6.4184, -20.3462, -4.8282, -19.2109, 18.3294, -3.6687, -8.0092, 4.3031, -6.0087, 1.139, -5.5804, -0.1107, -5.4911, -11.5885, -4.7154, 0.7346, 1.6979, 1.8021, -2.0629, -1.2698, 0.1654, 1.9995, -0.2111, 1.3248, 0.3881, 99.99
+            ];
+            const legitSample = [
+                1.1918, 0.2661, 0.1664, 0.4481, 0.0602, -0.0824, -0.0780,
+                0.0851, 0.2568, -0.1375, -0.0553, -0.0597, -0.0678, -0.0282,
+                -0.0362, -0.0436, -0.0322, -0.0105, -0.0453, -0.0410,
+                -0.0306, -0.0362, -0.0309, -0.0361, -0.0344, -0.0262,
+                -0.0291, 2.69, 0
+            ];
+            const values = type === 'fraud' ? fraudSample : legitSample;
+            values.forEach((val, i) => {
+                document.getElementById(`feature-${i + 1}`).value = val;
+            });
+        }
+        // Download CSV
+function downloadCSV() {
+    window.location.href = "http://localhost:5000/download";
+}
+
+// Fetch and Display Real-time Stats
+function getStats() {
+    fetch('http://localhost:5000/stats')
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById('total-pred').textContent = data.total_predictions;
+            document.getElementById('fraud-pred').textContent = data.fraud_predictions;
+            document.getElementById('fraud-rate').textContent = data.fraud_rate + "%";
+            document.getElementById('model-name').textContent = data.model;
+            document.getElementById('stats').style.display = 'block';
+        })
+        .catch(() => alert("Failed to fetch stats"));
+}
+
+    </script>
+</body>
+</html>
