@@ -29,7 +29,7 @@ An end-to-end machine learning web app that detects fraudulent credit card trans
 
 ---
 
-## 🚀 How to Run Locally
+##How to Run Locally
 
 ```bash
 git clone https://github.com/yourusername/credit-card-fraud-detection-app.git
